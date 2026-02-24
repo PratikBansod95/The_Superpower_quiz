@@ -93,6 +93,16 @@ h1, h2, h3, p {
   margin-bottom: 12px;
 }
 
+.visit-counter {
+  display: inline-block;
+  margin-bottom: 14px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
 button {
   padding: 12px 22px;
   border: none;
@@ -159,23 +169,41 @@ button:focus-visible,
   text-align: left;
 }
 
-.percent-label {
-  font-size: 0.94rem;
-  margin-bottom: 4px;
+.chart-wrap {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  flex-wrap: wrap;
 }
 
-.percent-bar {
-  height: 9px;
-  background: rgba(255, 255, 255, 0.22);
-  border-radius: 8px;
-  margin-bottom: 10px;
-  overflow: hidden;
+.pie-chart {
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
 }
 
-.percent-fill {
-  height: 100%;
-  background: var(--primary);
-  border-radius: 8px;
+.chart-legend {
+  min-width: 210px;
+  text-align: left;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 7px;
+  font-size: 0.95rem;
+}
+
+.legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
 }
 
 .sr-only {
@@ -216,6 +244,11 @@ button:focus-visible,
 
 <script>
 const STORAGE_KEY = "theheroquiz_state_v2";
+const LOCAL_VISIT_KEY = "theheroquiz_local_visits_v1";
+const VISIT_NAMESPACE = "the-superpower-quiz";
+const VISIT_KEY = `site-${location.hostname || "local"}`;
+
+let visitCounterText = "Visits: Loading...";
 
 const questions = [
   { q: "The Room Goes Silent", sub: "A heated argument breaks out in a group.", options: [
@@ -383,6 +416,42 @@ function restoreState() {
   }
 }
 
+function getAndIncrementLocalVisits() {
+  try {
+    const existing = Number(localStorage.getItem(LOCAL_VISIT_KEY) || "0");
+    const next = Number.isFinite(existing) ? existing + 1 : 1;
+    localStorage.setItem(LOCAL_VISIT_KEY, String(next));
+    return next;
+  } catch (_) {
+    return null;
+  }
+}
+
+function updateVisitCounterUI() {
+  const el = document.getElementById("visitCounter");
+  if (el) el.textContent = visitCounterText;
+}
+
+async function initializeVisitCounter() {
+  try {
+    const response = await fetch(`https://api.countapi.xyz/hit/${VISIT_NAMESPACE}/${VISIT_KEY}`);
+    if (!response.ok) throw new Error("Counter API request failed");
+    const data = await response.json();
+    if (typeof data.value !== "number") throw new Error("Invalid counter API response");
+    visitCounterText = `Visits: ${data.value.toLocaleString()}`;
+    updateVisitCounterUI();
+    return;
+  } catch (_) {
+    const localCount = getAndIncrementLocalVisits();
+    if (localCount !== null) {
+      visitCounterText = `Visits: ${localCount.toLocaleString()} (this device)`;
+    } else {
+      visitCounterText = "Visits unavailable";
+    }
+    updateVisitCounterUI();
+  }
+}
+
 function launchConfetti() {
   for (let i = 0; i < 100; i += 1) {
     const conf = document.createElement("div");
@@ -429,6 +498,7 @@ function showIntro() {
     ? `<button type="button" id="resumeBtn">Resume Quiz</button>`
     : "";
   app.innerHTML = `
+    <p class="visit-counter" id="visitCounter">${visitCounterText}</p>
     <h1>Discover Your Core Power</h1>
     <p>Answer honestly. Choose your first instinct.</p>
     <button type="button" id="startBtn">Start Quiz</button>
@@ -529,14 +599,21 @@ function showResult() {
   applyTheme(primary);
 
   let percentHTML = "";
+  let angleCursor = 0;
+  const gradientParts = [];
   sorted.forEach((k) => {
+    const slice = (percentages[k] / 100) * 360;
+    const nextCursor = angleCursor + slice;
+    gradientParts.push(`${powers[k].color} ${angleCursor}deg ${nextCursor}deg`);
+    angleCursor = nextCursor;
     percentHTML += `
-      <div class="percent-wrap">
-        <div class="percent-label">${powers[k].name} - ${percentages[k]}%</div>
-        <div class="percent-bar"><div class="percent-fill" style="width:${percentages[k]}%"></div></div>
+      <div class="legend-item">
+        <span class="legend-dot" style="background:${powers[k].color};"></span>
+        <span>${powers[k].name} - ${percentages[k]}%</span>
       </div>
     `;
   });
+  const pieGradient = `conic-gradient(${gradientParts.join(",")})`;
 
   app.className = "container fade-in";
   app.innerHTML = `
@@ -553,7 +630,10 @@ function showResult() {
       onerror="this.alt='Image unavailable';this.style.display='none';"
     />
     <h3 style="margin-top:20px;">Power Breakdown</h3>
-    ${percentHTML}
+    <div class="chart-wrap">
+      <div class="pie-chart" role="img" aria-label="Power breakdown pie chart" style="background:${pieGradient};"></div>
+      <div class="chart-legend">${percentHTML}</div>
+    </div>
     <button type="button" id="retakeBtn">Retake Quiz</button>
   `;
   document.getElementById("retakeBtn").addEventListener("click", restart);
@@ -570,6 +650,7 @@ function restart() {
 }
 
 const hasRecoveredSession = restoreState();
+initializeVisitCounter();
 if (hasRecoveredSession && state.current >= questions.length) {
   showResult();
 } else {
