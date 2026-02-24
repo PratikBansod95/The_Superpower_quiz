@@ -164,26 +164,41 @@ button:focus-visible,
   to { box-shadow: 0 0 36px var(--primary); }
 }
 
-.percent-wrap {
-  margin-top: 8px;
-  text-align: left;
-}
-
 .chart-wrap {
-  margin-top: 14px;
+  margin-top: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 18px;
+  gap: 24px;
   flex-wrap: wrap;
 }
 
 .pie-chart {
-  width: 180px;
-  height: 180px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.28);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+  width: 220px;
+  height: 220px;
+  display: grid;
+  place-items: center;
+}
+
+.pie-chart svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.pie-center-label {
+  font-size: 0.88rem;
+  fill: rgba(255, 255, 255, 0.92);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-anchor: middle;
+}
+
+.pie-center-value {
+  font-size: 1.55rem;
+  fill: #ffffff;
+  font-weight: 700;
+  text-anchor: middle;
 }
 
 .chart-legend {
@@ -195,15 +210,16 @@ button:focus-visible,
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 7px;
-  font-size: 0.95rem;
+  margin-bottom: 9px;
+  font-size: 1rem;
 }
 
 .legend-dot {
-  width: 12px;
-  height: 12px;
+  width: 13px;
+  height: 13px;
   border-radius: 50%;
   display: inline-block;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12);
 }
 
 .sr-only {
@@ -703,22 +719,69 @@ function showResult() {
   const hero = result.heroFemale || result.heroMale;
   applyTheme(primary);
 
-  let percentHTML = "";
-  let angleCursor = 0;
-  const gradientParts = [];
+  let legendHTML = "";
+  let svgSlices = "";
+  const chartSize = 220;
+  const center = chartSize / 2;
+  const radius = 74;
+  const stroke = 34;
+  const circumference = 2 * Math.PI * radius;
+  const gapLength = 5;
+  let dashOffset = 0;
+
   sorted.forEach((k) => {
-    const slice = (percentages[k] / 100) * 360;
-    const nextCursor = angleCursor + slice;
-    gradientParts.push(`${powers[k].color} ${angleCursor}deg ${nextCursor}deg`);
-    angleCursor = nextCursor;
-    percentHTML += `
+    const rawPercent = (state.scores[k] / total) * 100;
+    const arcLength = circumference * (rawPercent / 100);
+    const visibleLength = Math.max(arcLength - gapLength, 0);
+    const hiddenLength = circumference - visibleLength;
+
+    if (visibleLength > 0) {
+      svgSlices += `
+        <circle
+          cx="${center}"
+          cy="${center}"
+          r="${radius}"
+          fill="none"
+          stroke="${powers[k].color}"
+          stroke-width="${stroke}"
+          stroke-linecap="round"
+          stroke-dasharray="${visibleLength} ${hiddenLength}"
+          stroke-dashoffset="${-dashOffset - (gapLength / 2)}"
+        ></circle>
+      `;
+    }
+    dashOffset += arcLength;
+
+    legendHTML += `
       <div class="legend-item">
         <span class="legend-dot" style="background:${powers[k].color};"></span>
         <span>${powers[k].name} - ${percentages[k]}%</span>
       </div>
     `;
   });
-  const pieGradient = `conic-gradient(${gradientParts.join(",")})`;
+
+  const donutSvg = `
+    <svg viewBox="0 0 ${chartSize} ${chartSize}" role="img" aria-label="Power breakdown pie chart">
+      <defs>
+        <filter id="donutShadow" x="-30%" y="-30%" width="160%" height="160%">
+          <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="rgba(0,0,0,0.35)"/>
+        </filter>
+      </defs>
+      <g transform="rotate(-90 ${center} ${center})" filter="url(#donutShadow)">
+        <circle
+          cx="${center}"
+          cy="${center}"
+          r="${radius}"
+          fill="none"
+          stroke="rgba(255,255,255,0.2)"
+          stroke-width="${stroke}"
+        ></circle>
+        ${svgSlices}
+      </g>
+      <text x="${center}" y="${center - 8}" class="pie-center-label">TOP POWER</text>
+      <text x="${center}" y="${center + 22}" class="pie-center-value">${percentages[primary]}%</text>
+    </svg>
+  `;
 
   app.className = "container fade-in";
   app.innerHTML = `
@@ -736,8 +799,8 @@ function showResult() {
     />
     <h3 style="margin-top:20px;">Power Breakdown</h3>
     <div class="chart-wrap">
-      <div class="pie-chart" role="img" aria-label="Power breakdown pie chart" style="background:${pieGradient};"></div>
-      <div class="chart-legend">${percentHTML}</div>
+      <div class="pie-chart">${donutSvg}</div>
+      <div class="chart-legend">${legendHTML}</div>
     </div>
     <button type="button" id="retakeBtn">Retake Quiz</button>
   `;
