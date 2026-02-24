@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Discover Your Core Power</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --primary: #ff6ec7;
+  --bg1: #42275a;
+  --bg2: #734b6d;
+  --text: #ffffff;
+  --surface: rgba(255, 255, 255, 0.08);
+  --surface-strong: rgba(255, 255, 255, 0.14);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: "Poppins", sans-serif;
+  background: linear-gradient(135deg, var(--bg1), var(--bg2));
+  color: var(--text);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+  transition: background 0.5s ease;
+}
+
+.container {
+  width: min(100%, 760px);
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(20px);
+  border-radius: 24px;
+  padding: 28px;
+  text-align: center;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.42);
+}
+
+.fade-in {
+  animation: fadeIn 240ms ease-out both;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+h1, h2, h3, p {
+  margin-top: 0;
+}
+
+.small {
+  opacity: 0.9;
+}
+
+.progress {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.progress-bar {
+  height: 100%;
+  background: var(--primary);
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+.question-index {
+  font-size: 0.9rem;
+  opacity: 0.9;
+  margin-bottom: 12px;
+}
+
+button {
+  padding: 12px 22px;
+  border: none;
+  border-radius: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin: 8px;
+  background: var(--primary);
+  color: #0e0e0e;
+  min-height: 44px;
+  transition: transform 0.15s ease, filter 0.2s ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+}
+
+button:focus-visible,
+.option:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.options {
+  margin-top: 12px;
+}
+
+.option {
+  width: 100%;
+  text-align: left;
+  background: var(--surface);
+  border: 2px solid transparent;
+  border-radius: 14px;
+  padding: 12px;
+  margin: 8px 0;
+  color: var(--text);
+}
+
+.option:hover {
+  background: var(--surface-strong);
+  transform: scale(1.01);
+}
+
+.option[disabled] {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+.result-img {
+  width: min(100%, 240px);
+  border-radius: 18px;
+  margin-top: 16px;
+  animation: glow 2s infinite alternate;
+}
+
+@keyframes glow {
+  from { box-shadow: 0 0 14px var(--primary); }
+  to { box-shadow: 0 0 36px var(--primary); }
+}
+
+.percent-wrap {
+  margin-top: 8px;
+  text-align: left;
+}
+
+.percent-label {
+  font-size: 0.94rem;
+  margin-bottom: 4px;
+}
+
+.percent-bar {
+  height: 9px;
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+.percent-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 8px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 600px) {
+  .container {
+    padding: 20px;
+    border-radius: 18px;
+  }
+
+  h1 {
+    font-size: 1.55rem;
+  }
+
+  h2 {
+    font-size: 1.25rem;
+  }
+
+  button {
+    width: 100%;
+    margin-inline: 0;
+  }
+}
+</style>
+</head>
+<body>
+<main class="container fade-in" id="app" aria-live="polite"></main>
+
+<script>
+const STORAGE_KEY = "theheroquiz_state_v2";
+
+const questions = [
+  { q: "The Room Goes Silent", sub: "A heated argument breaks out in a group.", options: [
+    { text: "You step in and calm everyone down.", type: "A" },
+    { text: "You observe quietly and understand what is really going on.", type: "B" },
+    { text: "You take control and direct the conversation.", type: "C" },
+    { text: "You crack a line or shift energy to diffuse tension.", type: "D" }
+  ]},
+  { q: "You Wake Up With a Special Ability", sub: "You can choose only one.", options: [
+    { text: "Read emotions instantly.", type: "A" },
+    { text: "See future consequences of decisions.", type: "B" },
+    { text: "Influence people with your words.", type: "C" },
+    { text: "Build or fix anything with creativity.", type: "D" }
+  ]},
+  { q: "Your Team Is Failing a Mission", sub: "What do you naturally do?", options: [
+    { text: "Motivate everyone.", type: "A" },
+    { text: "Analyze what is broken in the system.", type: "B" },
+    { text: "Take responsibility and lead.", type: "C" },
+    { text: "Stay steady and prevent panic.", type: "D" }
+  ]},
+  { q: "Someone Betrays You", sub: "Your first instinct:", options: [
+    { text: "Cut them off logically.", type: "A" },
+    { text: "Understand why they did it.", type: "B" },
+    { text: "Plan your next strategic move.", type: "C" },
+    { text: "Channel the pain into self-growth.", type: "D" }
+  ]},
+  { q: "Free Time Choice", sub: "You prefer:", options: [
+    { text: "Deep conversations.", type: "A" },
+    { text: "Learning something complex.", type: "B" },
+    { text: "Building or creating something new.", type: "C" },
+    { text: "Competing or challenging yourself.", type: "D" }
+  ]},
+  { q: "In a New Environment", sub: "You:", options: [
+    { text: "Observe quietly before acting.", type: "A" },
+    { text: "Start connecting with people.", type: "B" },
+    { text: "Naturally become noticeable.", type: "C" },
+    { text: "Scan the structure and power dynamics.", type: "D" }
+  ]},
+  { q: "You Are Given Unlimited Resources", sub: "You would:", options: [
+    { text: "Build something revolutionary.", type: "A" },
+    { text: "Create a strong network of people.", type: "B" },
+    { text: "Design a long-term master plan.", type: "C" },
+    { text: "Strengthen yourself mentally and physically.", type: "D" }
+  ]},
+  { q: "A Crisis Happens Suddenly", sub: "You are the one who:", options: [
+    { text: "Keeps emotions stable.", type: "A" },
+    { text: "Makes the fastest decision.", type: "B" },
+    { text: "Spots the hidden opportunity.", type: "C" },
+    { text: "Protects others first.", type: "D" }
+  ]},
+  { q: "What Compliment Do You Hear Most?", sub: "", options: [
+    { text: "You understand people.", type: "A" },
+    { text: "You are smart.", type: "B" },
+    { text: "You are confident.", type: "C" },
+    { text: "You are strong.", type: "D" }
+  ]},
+  { q: "Your Inner Drive Is Mostly:", sub: "", options: [
+    { text: "Impact.", type: "A" },
+    { text: "Mastery.", type: "B" },
+    { text: "Control.", type: "C" },
+    { text: "Freedom.", type: "D" }
+  ]}
+];
+
+const powers = {
+  A: {
+    name: "Empath Power",
+    heroFemale: "Scarlet Witch",
+    heroMale: "Professor X",
+    color: "#ff6ec7",
+    bg1: "#42275a",
+    bg2: "#734b6d",
+    img: "https://images.unsplash.com/photo-1535223289827-42f1e9919769?auto=format&fit=crop&w=800&q=80",
+    summary: "You lead with emotional intelligence and awareness. You sense unspoken feelings quickly and people trust you naturally."
+  },
+  B: {
+    name: "Strategist Power",
+    heroFemale: "Shuri",
+    heroMale: "Batman",
+    color: "#00f2fe",
+    bg1: "#0f2027",
+    bg2: "#203a43",
+    img: "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=800&q=80",
+    summary: "You think ahead of everyone else. You are energized by patterns, complexity, and long-range plans."
+  },
+  C: {
+    name: "Influencer Power",
+    heroFemale: "Captain Marvel",
+    heroMale: "Iron Man",
+    color: "#f7971e",
+    bg1: "#41295a",
+    bg2: "#2f0743",
+    img: "https://images.unsplash.com/photo-1508672019048-805c876b67e2?auto=format&fit=crop&w=800&q=80",
+    summary: "Your presence shifts rooms quickly. You inspire action and lead with confidence and momentum."
+  },
+  D: {
+    name: "Resilience Power",
+    heroFemale: "Wonder Woman",
+    heroMale: "Thor",
+    color: "#43cea2",
+    bg1: "#0f2027",
+    bg2: "#2c5364",
+    img: "https://images.unsplash.com/photo-1483721310020-03333e577078?auto=format&fit=crop&w=800&q=80",
+    summary: "Pressure strengthens you. You stay steady under stress and keep going when others would stop."
+  }
+};
+
+const app = document.getElementById("app");
+
+const state = {
+  current: -1,
+  scores: { A: 0, B: 0, C: 0, D: 0 },
+  optionLock: false,
+  shuffled: []
+};
+
+function shuffleArray(arr) {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+function buildShuffledQuestions() {
+  state.shuffled = questions.map((q) => ({
+    ...q,
+    options: shuffleArray(q.options)
+  }));
+}
+
+function saveState() {
+  const payload = {
+    current: state.current,
+    scores: state.scores,
+    shuffled: state.shuffled
+  };
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  } catch (_) {
+    // Ignore storage issues (private mode / blocked storage).
+  }
+}
+
+function clearSavedState() {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch (_) {}
+}
+
+function restoreState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed.current !== "number") return false;
+    if (!parsed.scores || !parsed.shuffled) return false;
+    state.current = parsed.current;
+    state.scores = parsed.scores;
+    state.shuffled = parsed.shuffled;
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function launchConfetti() {
+  for (let i = 0; i < 100; i += 1) {
+    const conf = document.createElement("div");
+    conf.style.position = "fixed";
+    conf.style.width = "8px";
+    conf.style.height = "8px";
+    conf.style.borderRadius = "2px";
+    conf.style.background = `hsl(${Math.random() * 360},100%,50%)`;
+    conf.style.top = "-10px";
+    conf.style.left = `${Math.random() * 100}vw`;
+    conf.style.opacity = "1";
+    conf.style.transform = `rotate(${Math.random() * 360}deg)`;
+    conf.style.transition = "top 2.8s linear, opacity 2.8s linear";
+    conf.setAttribute("aria-hidden", "true");
+    document.body.appendChild(conf);
+    setTimeout(() => {
+      conf.style.top = "100vh";
+      conf.style.opacity = "0";
+    }, 50);
+    setTimeout(() => conf.remove(), 3000);
+  }
+}
+
+function getPrimaryAndSecondary(scoresObj) {
+  const sorted = Object.keys(scoresObj).sort((a, b) => scoresObj[b] - scoresObj[a]);
+  const primary = sorted[0];
+  const secondary = sorted[1];
+  const delta = scoresObj[primary] - scoresObj[secondary];
+  const hybrid = delta <= 1 && scoresObj[secondary] >= 2;
+  return { sorted, primary, secondary, hybrid };
+}
+
+function applyTheme(type) {
+  const t = powers[type];
+  document.documentElement.style.setProperty("--primary", t.color);
+  document.documentElement.style.setProperty("--bg1", t.bg1);
+  document.documentElement.style.setProperty("--bg2", t.bg2);
+}
+
+function showIntro() {
+  state.optionLock = false;
+  app.className = "container fade-in";
+  const resumeButton = state.current >= 0 && state.current < questions.length
+    ? `<button type="button" id="resumeBtn">Resume Quiz</button>`
+    : "";
+  app.innerHTML = `
+    <h1>Discover Your Core Power</h1>
+    <p>Answer honestly. Choose your first instinct.</p>
+    <button type="button" id="startBtn">Start Quiz</button>
+    ${resumeButton}
+  `;
+  document.getElementById("startBtn").addEventListener("click", startNewQuiz);
+  const resume = document.getElementById("resumeBtn");
+  if (resume) {
+    resume.addEventListener("click", renderQuestion);
+  }
+}
+
+function startNewQuiz() {
+  state.current = 0;
+  state.scores = { A: 0, B: 0, C: 0, D: 0 };
+  state.optionLock = false;
+  buildShuffledQuestions();
+  saveState();
+  renderQuestion();
+}
+
+function nextQuestion() {
+  state.current += 1;
+  if (state.current >= questions.length) {
+    showResult();
+    return;
+  }
+  saveState();
+  renderQuestion();
+}
+
+function renderQuestion() {
+  if (!state.shuffled.length) buildShuffledQuestions();
+  if (state.current < 0) {
+    showIntro();
+    return;
+  }
+
+  const q = state.shuffled[state.current];
+  const progress = (state.current / questions.length) * 100;
+  app.className = "container fade-in";
+  app.innerHTML = `
+    <div class="progress" aria-hidden="true">
+      <div class="progress-bar" style="width:${progress}%"></div>
+    </div>
+    <p class="question-index">Question ${state.current + 1} of ${questions.length}</p>
+    <h2>${q.q}</h2>
+    ${q.sub ? `<p class="small">${q.sub}</p>` : ""}
+    <div class="options" role="group" aria-label="Answer choices"></div>
+    <span class="sr-only" id="optionHelp">Choose one answer to continue.</span>
+  `;
+
+  const optionsWrap = app.querySelector(".options");
+  q.options.forEach((opt, idx) => {
+    const btn = document.createElement("button");
+    btn.className = "option";
+    btn.type = "button";
+    btn.setAttribute("aria-describedby", "optionHelp");
+    btn.textContent = opt.text;
+    btn.addEventListener("click", () => selectOption(opt.type));
+    if (idx === 0) btn.autofocus = true;
+    optionsWrap.appendChild(btn);
+  });
+}
+
+function selectOption(type) {
+  if (state.optionLock) return;
+  state.optionLock = true;
+
+  const optionButtons = app.querySelectorAll(".option");
+  optionButtons.forEach((btn) => {
+    btn.disabled = true;
+  });
+
+  if (Object.prototype.hasOwnProperty.call(state.scores, type)) {
+    state.scores[type] += 1;
+  }
+  saveState();
+  setTimeout(() => {
+    state.optionLock = false;
+    nextQuestion();
+  }, 130);
+}
+
+function showResult() {
+  clearSavedState();
+  launchConfetti();
+
+  const total = Object.values(state.scores).reduce((a, b) => a + b, 0) || 1;
+  const percentages = {};
+  Object.keys(state.scores).forEach((k) => {
+    percentages[k] = Math.round((state.scores[k] / total) * 100);
+  });
+
+  const { sorted, primary, secondary, hybrid } = getPrimaryAndSecondary(state.scores);
+  const result = powers[primary];
+  const hero = result.heroFemale || result.heroMale;
+  applyTheme(primary);
+
+  let percentHTML = "";
+  sorted.forEach((k) => {
+    percentHTML += `
+      <div class="percent-wrap">
+        <div class="percent-label">${powers[k].name} - ${percentages[k]}%</div>
+        <div class="percent-bar"><div class="percent-fill" style="width:${percentages[k]}%"></div></div>
+      </div>
+    `;
+  });
+
+  app.className = "container fade-in";
+  app.innerHTML = `
+    <h1>${result.name}</h1>
+    <h3>Superhero Archetype: ${hero}</h3>
+    ${hybrid ? `<p><strong>Hybrid:</strong> ${powers[secondary].name}</p>` : ""}
+    <p style="line-height:1.6;">${result.summary}</p>
+    <img
+      class="result-img"
+      src="${result.img}"
+      alt="${result.name} visual theme"
+      loading="lazy"
+      referrerpolicy="no-referrer"
+      onerror="this.alt='Image unavailable';this.style.display='none';"
+    />
+    <h3 style="margin-top:20px;">Power Breakdown</h3>
+    ${percentHTML}
+    <button type="button" id="retakeBtn">Retake Quiz</button>
+  `;
+  document.getElementById("retakeBtn").addEventListener("click", restart);
+}
+
+function restart() {
+  state.current = -1;
+  state.scores = { A: 0, B: 0, C: 0, D: 0 };
+  state.shuffled = [];
+  state.optionLock = false;
+  clearSavedState();
+  applyTheme("A");
+  showIntro();
+}
+
+const hasRecoveredSession = restoreState();
+if (hasRecoveredSession && state.current >= questions.length) {
+  showResult();
+} else {
+  showIntro();
+}
+</script>
+</body>
+</html>
