@@ -453,26 +453,131 @@ async function initializeVisitCounter() {
 }
 
 function launchConfetti() {
-  for (let i = 0; i < 100; i += 1) {
-    const conf = document.createElement("div");
-    conf.style.position = "fixed";
-    conf.style.width = "8px";
-    conf.style.height = "8px";
-    conf.style.borderRadius = "2px";
-    conf.style.background = `hsl(${Math.random() * 360},100%,50%)`;
-    conf.style.top = "-10px";
-    conf.style.left = `${Math.random() * 100}vw`;
-    conf.style.opacity = "1";
-    conf.style.transform = `rotate(${Math.random() * 360}deg)`;
-    conf.style.transition = "top 2.8s linear, opacity 2.8s linear";
-    conf.setAttribute("aria-hidden", "true");
-    document.body.appendChild(conf);
-    setTimeout(() => {
-      conf.style.top = "100vh";
-      conf.style.opacity = "0";
-    }, 50);
-    setTimeout(() => conf.remove(), 3000);
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    return;
   }
+
+  const oldCanvas = document.getElementById("celebrationCanvas");
+  if (oldCanvas) oldCanvas.remove();
+
+  const canvas = document.createElement("canvas");
+  canvas.id = "celebrationCanvas";
+  canvas.setAttribute("aria-hidden", "true");
+  canvas.style.position = "fixed";
+  canvas.style.inset = "0";
+  canvas.style.width = "100vw";
+  canvas.style.height = "100vh";
+  canvas.style.pointerEvents = "none";
+  canvas.style.zIndex = "9999";
+  document.body.appendChild(canvas);
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    canvas.remove();
+    return;
+  }
+
+  function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+
+  resizeCanvas();
+
+  const colors = ["#ff6ec7", "#ffd166", "#06d6a0", "#4cc9f0", "#f72585", "#f7971e", "#ffffff"];
+  const pieces = [];
+  const gravity = 0.18;
+  const drag = 0.992;
+  const startTime = performance.now();
+  const duration = 6000;
+
+  function createPiece(originX, originY, forceScale = 1) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = (3 + Math.random() * 10) * forceScale;
+    const size = 5 + Math.random() * 8;
+    return {
+      x: originX,
+      y: originY,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 2,
+      width: size,
+      height: size * (0.6 + Math.random() * 0.9),
+      color: colors[Math.floor(Math.random() * colors.length)],
+      tilt: Math.random() * Math.PI * 2,
+      tiltSpeed: (Math.random() - 0.5) * 0.24,
+      spin: (Math.random() - 0.5) * 0.2,
+      rotation: Math.random() * Math.PI * 2,
+      shape: Math.random() < 0.2 ? "circle" : "rect",
+      life: 0.85 + Math.random() * 0.35
+    };
+  }
+
+  function burst(count, originX, originY, forceScale) {
+    for (let i = 0; i < count; i += 1) {
+      pieces.push(createPiece(originX, originY, forceScale));
+    }
+  }
+
+  const burstPlan = [
+    { delay: 0, count: 170, x: 0.5, y: 0.12, force: 1.05 },
+    { delay: 220, count: 120, x: 0.2, y: 0.18, force: 0.95 },
+    { delay: 380, count: 120, x: 0.8, y: 0.18, force: 0.95 },
+    { delay: 560, count: 100, x: 0.5, y: 0.22, force: 0.9 }
+  ];
+
+  burstPlan.forEach((b) => {
+    setTimeout(() => {
+      burst(b.count, canvas.width * b.x, canvas.height * b.y, b.force);
+    }, b.delay);
+  });
+
+  function drawPiece(p) {
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.rotation);
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.color;
+    if (p.shape === "circle") {
+      ctx.beginPath();
+      ctx.arc(0, 0, p.width * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.fillRect(-p.width / 2, -p.height / 2, p.width, p.height);
+    }
+    ctx.restore();
+  }
+
+  function animate(now) {
+    const elapsed = now - startTime;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (let i = pieces.length - 1; i >= 0; i -= 1) {
+      const p = pieces[i];
+      p.vx *= drag;
+      p.vy = p.vy * drag + gravity;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.tilt += p.tiltSpeed;
+      p.rotation += p.spin + Math.sin(p.tilt) * 0.04;
+      p.life -= 0.0026;
+
+      drawPiece(p);
+
+      if (p.y > canvas.height + 40 || p.x < -50 || p.x > canvas.width + 50 || p.life <= 0) {
+        pieces.splice(i, 1);
+      }
+    }
+
+    if (elapsed < duration || pieces.length > 0) {
+      requestAnimationFrame(animate);
+    } else {
+      canvas.remove();
+      window.removeEventListener("resize", resizeCanvas);
+    }
+  }
+
+  window.addEventListener("resize", resizeCanvas);
+  requestAnimationFrame(animate);
 }
 
 function getPrimaryAndSecondary(scoresObj) {
